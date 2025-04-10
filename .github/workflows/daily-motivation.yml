@@ -1,11 +1,11 @@
-name: Send Daily Motivational Quote
+name: Daily Motivation
 
 on:
   schedule:
-    - cron: '30 9 * * 1-5'
+    - cron: '30 9 * * 1-5' # Every weekday at 9:30 AM UTC
 
 jobs:
-  send_motivation:
+  send-quote:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,16 +15,21 @@ jobs:
         run: |
           # Fetch the quote
           response=$(curl -s https://zenquotes.io/api/random)
-          
-          # Parse the quote and author
+
+          # Parse the quote and author using jq
           quote=$(echo "$response" | jq -r '.[0].q')
           author=$(echo "$response" | jq -r '.[0].a')
 
-          # Send to Slack with proper newlines
-          curl -X POST -H "Content-type: application/json" \
-            --data "$(jq -n --arg text "🌟 Daily Motivation 🌟
+          # Construct message with real line breaks (not \n)
+          message="🌟 Daily Motivation 🌟
 
 _${quote}_
 
-– $author" '{text: $text}')" \
+– $author"
+
+          # Post to Slack
+          payload=$(jq -n --arg text "$message" '{text: $text}')
+
+          curl -X POST -H "Content-type: application/json" \
+            --data "$payload" \
             "$SLACK_WEBHOOK"
