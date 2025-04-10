@@ -1,36 +1,28 @@
-name: Daily Motivation
+name: Send Daily Motivational Quote
 
 on:
   schedule:
-    - cron: '30 9 * * 1-5' # Weekdays at 9:30 AM UTC
+    - cron: '0 9 * * 1-5'
 
 jobs:
-  send-quote:
+  send_motivation:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch Quote and Send to Slack
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Fetch and Send Motivational Quote to Slack
+      
         run: |
-          # Fetch a random motivational quote
+          # Get quote and author
           response=$(curl -s https://zenquotes.io/api/random)
-
-          # Extract the quote and author using jq
           quote=$(echo "$response" | jq -r '.[0].q')
           author=$(echo "$response" | jq -r '.[0].a')
 
-          # Escape quotes and construct a multi-line message
-          message="🌟 Daily Motivation 🌟
+          # Create JSON payload safely with jq
+          payload=$(jq -n \
+            --arg text "🌟 *Daily Motivation* 🌟\n\n_${quote}_\n\n– *$author*" \
+            '{text: $text}')
 
-_${quote}_
-
-– $author"
-
-          # Use a heredoc to safely format JSON payload
-          curl -X POST -H "Content-type: application/json" \
-          -d @- "$SLACK_WEBHOOK" <<EOF
-{
-  "text": "$message"
-}
-EOF
+          # Send to Slack
+          curl -X POST -H 'Content-type: application/json' \
+          --data "$payload" \
+          ${{ secrets.SLACK_WEBHOOK_URL }}
