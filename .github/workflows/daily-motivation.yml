@@ -1,20 +1,28 @@
 name: Send Daily Motivational Quote
 
 on:
-  schedule:
-    - cron: '0 9 * * *'  # This cron schedule triggers the action every day at 9 AM UTC.
+  push:
+    branches:
+      - master
 
 jobs:
   send_motivation:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch Motivational Quote
+      - name: Fetch and Send Motivational Quote
         run: |
-          # Fetch a random quote from an API like ZenQuotes
-          quote=$(curl -s https://zenquotes.io/api/random | jq -r '.[0].q')
+          # Get quote and author
+          response=$(curl -s https://zenquotes.io/api/random)
+          quote=$(echo "$response" | jq -r '.[0].q')
+          author=$(echo "$response" | jq -r '.[0].a')
 
-          # Send the quote to Slack
+          # Create JSON payload safely with jq
+          payload=$(jq -n \
+            --arg text "🌟 *Daily Motivation* 🌟\n\n_${quote}_\n\n– *$author*" \
+            '{text: $text}')
+
+          # Send to Slack
           curl -X POST -H 'Content-type: application/json' \
-          --data '{"text": "🌟 Daily Motivation: \n*'${quote}'*"}' \
+          --data "$payload" \
           ${{ secrets.SLACK_WEBHOOK_URL }}
